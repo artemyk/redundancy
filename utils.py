@@ -39,5 +39,8 @@ def get_best_solution(cs, get_solution_val):
         if val > best_val:
             best_val, best_sol = val, sol
             
+    if best_sol is None:
+        raise Exception('No solutions found!')
+            
     return best_val, best_sol
 
