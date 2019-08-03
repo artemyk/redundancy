@@ -23,7 +23,7 @@ import numpy as np
 
 
 
-def get_Istar(raw_pjoint, n_q, eps=1e-8):
+def get_Istar(raw_pjoint, eps=1e-8):
     # pjoint is a joint distribution object from dit, where the last random
     #    variable is the target Y, and the others are the sources X_1 ,..., X_n
     # eps is needed because we round our conditional probability distributions
@@ -41,6 +41,10 @@ def get_Istar(raw_pjoint, n_q, eps=1e-8):
     
     variablesQgiven = {}
     ndx             = 0
+    
+    n_q = sum([len(alphabet)-1 for rvndx, alphabet in enumerate(pjoint.alphabet)
+                             if rvndx != target_rvndx]) + 1
+                             
     for rvndx, rv in enumerate(pjoint.rvs):
         variablesQgiven[rvndx] = {}
         mP = pjoint.marginal([rvndx,])
@@ -50,11 +54,12 @@ def get_Istar(raw_pjoint, n_q, eps=1e-8):
             sum_to_one = 0
             for q in range(n_q):
                 cvar        = ppl.Variable(ndx)
+                ndx        += 1
                 variablesQgiven[rvndx][(q, v)] = cvar
                 sum_to_one += cvar
-                ndx        += 1
                 cs.insert(cvar >= 0)
-            cs.insert(sum_to_one == 1)
+            if rvndx != target_rvndx:
+                cs.insert(sum_to_one == 1)
 
     for rvndx, rv in enumerate(pjoint.rvs):
         if rvndx == target_rvndx:
@@ -67,25 +72,25 @@ def get_Istar(raw_pjoint, n_q, eps=1e-8):
                 cur_mult   = 0.  # multiplier to make everything rational, and make rounded values add up to 1
                 for x in pjoint.alphabet[rvndx]:
                     pXgY        = int(pSourceGY[y_ix][x] / eps)
-                    pXgY_mult   = int(pXgY/eps)
-                    cur_mult   += pXgY_mult
-                    constraint += pXgY_mult * variablesQgiven[rvndx][(q, x)]
+                    cur_mult   += pXgY
+                    constraint += pXgY * variablesQgiven[rvndx][(q, x)]
                 cs.insert(constraint == cur_mult*variablesQgiven[target_rvndx][(q, y)])
 
     def get_solution_val(x):
         pY  = pjoint.marginal([target_rvndx,])
         sol = {}
+        sol['pQY'] = np.zeros( (n_q, len(pY)) )
+        for (q,y), k in variablesQgiven[target_rvndx].items():
+            y_ix = pY._outcomes_index[y]
+            sol['pQY'][q, y_ix] += pY[y] * x[k.id()]
+
         for rvndx in range(len(pjoint.rvs)-1):
             pX = pjoint.marginal([rvndx,])
             sol[rvndx] = np.zeros( (n_q, len(pX.alphabet[0]) ) )
             for (q,v), k in variablesQgiven[rvndx].items():
                 v_ix = pX._outcomes_index[v]
                 sol[rvndx][q,v_ix] = x[k.id()]
-               
-        sol['pQY'] = np.zeros( (n_q, len(pY)) )
-        for (q,y), k in variablesQgiven[target_rvndx].items():
-            y_ix = pY._outcomes_index[y]
-            sol['pQY'][q, y_ix] += pY[y] * x[k.id()]
+
         return sol, mutual_info(sol['pQY'])
     
     return get_best_solution(cs, get_solution_val)
