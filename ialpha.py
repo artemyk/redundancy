@@ -3,6 +3,7 @@ from utils import mutual_info, get_best_solution
 import numpy as np
 
 # Finding I_alpha, as defined in Griffith and Ho (2015)
+# This measure is called I_\cap^GH in the text
 
 # Given a joint distribution $p_{Y,X_1,..,X_n}$, I_alpha can be 
 # written as the solution to the following optimization problem:

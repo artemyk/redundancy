@@ -2,7 +2,7 @@ import ppl
 from utils import mutual_info, get_best_solution
 import numpy as np
 
-# Finding I_star
+# Compute our proposed redundancy measure, $I_\cap^\star$
 
 # Given a joint distribution $p_{YX_1X_2}$, $I_\cap^\star$ is 
 # written as the solution to the following optimization problem:
