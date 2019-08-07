@@ -1,5 +1,6 @@
 import ppl
-from utils import mutual_info, get_best_solution
+from utils import get_best_solution, mi
+
 import numpy as np
 
 # Compute our proposed redundancy measure, $I_\cap^\star$
@@ -28,7 +29,7 @@ def get_Istar(raw_pjoint, eps=1e-8):
     #    variable is the target Y, and the others are the sources X_1 ,..., X_n
     # eps is needed because we round our conditional probability distributions
     #    to rationals (computational algebra library ppl only works for rationals)
-
+    
     pjoint = raw_pjoint.copy()
     
     target_rvndx = len(pjoint.rvs) - 1
@@ -60,7 +61,8 @@ def get_Istar(raw_pjoint, eps=1e-8):
                 cs.insert(cvar >= 0)
             if rvndx != target_rvndx:
                 cs.insert(sum_to_one == 1)
-
+                
+                
     for rvndx, rv in enumerate(pjoint.rvs):
         if rvndx == target_rvndx:
             continue
@@ -91,7 +93,7 @@ def get_Istar(raw_pjoint, eps=1e-8):
                 v_ix = pX._outcomes_index[v]
                 sol[rvndx][q,v_ix] = x[k.id()]
 
-        return sol, mutual_info(sol['pQY'])
+        return sol, mi(sol['pQY'])
     
     return get_best_solution(cs, get_solution_val)
 

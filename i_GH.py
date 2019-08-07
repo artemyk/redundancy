@@ -1,16 +1,19 @@
 from ppl import Variable, Constraint_System
-from utils import mutual_info, get_best_solution
+from utils import get_best_solution, mi
 import numpy as np
+from scipy.stats import entropy
 
-# Finding I_alpha, as defined in Griffith and Ho (2015)
-# This measure is called I_\cap^GH in the text
+ln2 = np.log(2)
 
-# Given a joint distribution $p_{Y,X_1,..,X_n}$, I_alpha can be 
+# Finding I_\cap^GH, as defined in Griffith and Ho (2015)
+#   (there it is called I_alpha)
+
+# Given a joint distribution $p_{Y,X_1,..,X_n}$, I_\cap^GH can be 
 # written as the solution to the following optimization problem:
-#   I_alpha = max_{s_{Q|X_1,X_2,Y}} I_s(Y;Q)
+#   R = max_{s_{Q|X_1,X_2,Y}} I_s(Y;Q)
 #              s.t. H(Q|X_i) = H(Q|X_i , Y) \forall i
 # This can in turn be re-written as:
-#   I_alpha = max_{s_{Q|X_1,X_2,Y}} I_s(Y;Q)
+#   R = max_{s_{Q|X_1,X_2,Y}} I_s(Y;Q)
 #               s.t. \forall i, q, x_i, y  s(q|x_i) = s(q|x_i, y)
 # 
 # Note that this is optimization problem involes a maximization of 
@@ -25,7 +28,7 @@ import numpy as np
 # can be done, using a similar technique as the bound for Istar)
 
 
-def get_Ialpha(raw_pjoint, n_q, eps=1e-20):
+def get_I_GH(raw_pjoint, n_q, eps=1e-10):
     # mult is a multiplier that is used to turn floating point numbers into integers,
     # (since ppl only works with rationals)
 
@@ -62,14 +65,16 @@ def get_Ialpha(raw_pjoint, n_q, eps=1e-20):
     for v in variables.values():
         cs.insert(v >= 0)
 
+
     # for each x1, x2, y : \sum_q p(q|x1,x2,y) = 1 
     for ndx, o in enumerate(pjoint.sample_space()):
         cs.insert(sum(variables[(q,o)] for q in range(n_q)) == 1)
-
+        
         # We now specify the remaining constraints:
-        # \forall q,x_1,y : \sum_{x_2,y'} s(q|x_1,x_2,y') p(x_2,y'|x_1) - \sum_{x_2} s(q|x_1,x_2,y) p(x_2|x_1,y) = 0,\\
-        # \forall q,x_2,y : \sum_{x_1,y'} s(q|x_1,x_2,y') p(x_1,y'|x_1) - \sum_{x_1} s(q|x_1,x_2,y) p(x_1|x_2,y) = 0.
-
+        # \forall q,x_1,y : 
+        #   \sum_{x_2,...x_n,y'} s(q|x_1,...,x_n,y') p(x_2,y'|x_1) = \sum_{x_2,...x_n} s(q|x_1,...,x_n,y) p(x_2,...,x_n|x_1,y) ,
+        # and similarly for the other sources
+        
         def k(d):
             return "".join(d[rv] for rv in rv_names)
         
@@ -107,16 +112,23 @@ def get_Ialpha(raw_pjoint, n_q, eps=1e-20):
                         valdict.update(dict(zip(otherrvs, othervals)))
                         sumR += int(p/eps) * variables[q,k(valdict)]
 
-                    cs.insert(sumL == sumR)
+                    cs.insert(sumL - sumR == 0)
                 
-                
+
+    sol_mx = np.zeros( (n_q*n_y, len(variables)) )
+    for (q,o), k in variables.items():
+        y=int(o[-1])
+        sol_mx[q*n_y + y, k.id()] = pjoint[o]
+                             
     def get_solution_val(x):
-        pQY = np.zeros((n_q, n_y))
-        for (q,o), k in variables.items():
-            y=int(o[-1])
-            pQY[q, y] += pjoint[o] * x[k.id()]
-        mi = mutual_info(pQY)
-        return pQY, mi
+        pQY = sol_mx.dot(x).reshape(n_q, n_y)
+        mival = mi(pQY)
+        # pQY = np.zeros((n_q, n_y))
+        # for (q,o), k in variables.items():
+        #     y=int(o[-1])
+        #     pQY[q, y] += pjoint[o] * x[k.id()]
+        # mival = entropy(pQY.sum(axis=0)) + entropy(pQY.sum(axis=1)) - entropy(pQY.flat)
+        return {'raw':np.array(x), 'pQY':pQY}, mival / ln2
     
     return get_best_solution(cs, get_solution_val)
 
