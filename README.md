@@ -1,4 +1,4 @@
-# Implementation of <img src="https://latex.codecogs.com/gif.latex?%5Cdpi%7B200%7D%20I_\cap^\star" /> $
+# Implementation of <img src="https://latex.codecogs.com/gif.latex?%5Cdpi%7B200%7D%20I_\cap^\star" />
 
 This code requires the Python version of *Parma Polyhedra Library (PPL)* to be installed. This can be done in the following manner:
 
