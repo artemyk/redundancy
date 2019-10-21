@@ -12,19 +12,22 @@ def get_best_solution(cs, get_solution_val):
     poly_from_constraints = ppl.C_Polyhedron(cs)
     all_generators = poly_from_constraints.minimized_generators()
     
-    best_val, best_sol = -np.inf, None
+    best_x, best_val, best_sol = None, -np.inf, None
     for gen in all_generators:
         if not gen.is_point():
             raise Exception
             
         x        = point2array(gen)
-        sol, val = get_solution_val(x)
+        sol, val = get_solution_val(x, full=False)
 
         if val > best_val:
-            best_val, best_sol = val, sol
+            best_x, best_val, best_sol = x, val, sol
             
     if best_sol is None:
         raise Exception('No solutions found!')
+
+    best_sol, final_best_val = get_solution_val(best_x, full=True)
+    assert(np.isclose(final_best_val, best_val))
             
     return best_val, best_sol
 

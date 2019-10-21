@@ -41,7 +41,7 @@ def get_Istar(raw_pjoint, eps=1e-8):
     cs = ppl.Constraint_System()
     
     variablesQgiven = {}
-    ndx             = 0
+    num_vars        = 0
     
     n_q = sum([len(alphabet)-1 for rvndx, alphabet in enumerate(pjoint.alphabet)
                              if rvndx != target_rvndx]) + 1
@@ -54,8 +54,8 @@ def get_Istar(raw_pjoint, eps=1e-8):
         for v in pjoint.alphabet[rvndx]:
             sum_to_one = 0
             for q in range(n_q):
-                cvar        = ppl.Variable(ndx)
-                ndx        += 1
+                cvar        = ppl.Variable(num_vars)
+                num_vars   += 1
                 variablesQgiven[rvndx][(q, v)] = cvar
                 sum_to_one += cvar
                 cs.insert(cvar >= 0)
@@ -78,20 +78,25 @@ def get_Istar(raw_pjoint, eps=1e-8):
                     constraint += pXgY * variablesQgiven[rvndx][(q, x)]
                 cs.insert(constraint == cur_mult*variablesQgiven[target_rvndx][(q, y)])
 
-    def get_solution_val(x):
-        pY  = pjoint.marginal([target_rvndx,])
-        sol = {}
-        sol['pQY'] = np.zeros( (n_q, len(pY)) )
-        for (q,y), k in variablesQgiven[target_rvndx].items():
-            y_ix = pY._outcomes_index[y]
-            sol['pQY'][q, y_ix] += pY[y] * x[k.id()]
+    # Define a matrix that allows for fast mapping from return solution vector to joint distribution over Q and Y
+    pY     = pjoint.marginal([target_rvndx,])
+    n_y    = len(pY)
+    sol_mx = np.zeros((num_vars, n_q*n_y))
+    for (q,y), k in variablesQgiven[target_rvndx].items():
+        y_ix = pY._outcomes_index[y]
+        sol_mx[k.id(), q*n_y + y_ix] += pY[y]
 
-        for rvndx in range(len(pjoint.rvs)-1):
-            pX = pjoint.marginal([rvndx,])
-            sol[rvndx] = np.zeros( (n_q, len(pX.alphabet[0]) ) )
-            for (q,v), k in variablesQgiven[rvndx].items():
-                v_ix = pX._outcomes_index[v]
-                sol[rvndx][q,v_ix] = x[k.id()]
+    def get_solution_val(x, full=False):
+        # full=True returns full solution information. It is slower and done for the best solution
+        sol = { 'pQY' : x.dot(sol_mx).reshape((n_q,n_y)) }
+
+        if full:
+            for rvndx in range(len(pjoint.rvs)-1):
+                pX = pjoint.marginal([rvndx,])
+                sol[rvndx] = np.zeros( (n_q, len(pX.alphabet[0]) ) )
+                for (q,v), k in variablesQgiven[rvndx].items():
+                    v_ix = pX._outcomes_index[v]
+                    sol[rvndx][q,v_ix] = x[k.id()]
 
         return sol, mi(sol['pQY'])
     
