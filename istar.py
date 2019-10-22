@@ -13,7 +13,7 @@ import numpy as np
 # 
 # This can in turn be re-written as:
 # I_\alpha = \min_{s_{Q|Y},s_{Q|X_1}, ..., s_{Q|X_n}}  I_s(Y;Q)\\
-#              s.t. \forall i,q,y : \sum_{x_i} s(q|x_i) p(x_i|y) = s(q|y).
+#              s.t. \forall i,q,y : \sum_{x_i} s(q|x_i) p(x_i,y) = s(q|y)p(y).
 # 
 # Note that this is optimization problem involes a maximization of 
 # a convex function, subject to a system of linear constraints.  This 
