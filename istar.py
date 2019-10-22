@@ -13,7 +13,7 @@ import numpy as np
 # 
 # This can in turn be re-written as:
 # I_\alpha = \min_{s_{Q|Y},s_{Q|X_1}, ..., s_{Q|X_n}}  I_s(Y;Q)\\
-#              s.t. \forall i,q,y : \sum_{x_i} s(q|x_i) p(x_i,y) = s(q|y)p(y).
+#              s.t. \forall i,q,y : \sum_{x_i} s(q|x_i) p(x_i|y) = s(q|y).
 # 
 # Note that this is optimization problem involes a maximization of 
 # a convex function, subject to a system of linear constraints.  This 
@@ -45,13 +45,12 @@ def get_Istar(raw_pjoint, eps=1e-8):
     
     n_q = sum([len(alphabet)-1 for rvndx, alphabet in enumerate(pjoint.alphabet)
                              if rvndx != target_rvndx]) + 1
-    pY = pjoint.marginal([target_rvndx,])
                              
     for rvndx, rv in enumerate(pjoint.rvs):
         variablesQgiven[rvndx] = {}
         mP = pjoint.marginal([rvndx,])
         if len(mP._outcomes_index) != len(pjoint.alphabet[rvndx]):
-            raise Exception('All marginals should have full support (to proceed, drop outcomes with 0 probability)')
+            raise Exception('All marginals should have full support')
         for v in pjoint.alphabet[rvndx]:
             sum_to_one = 0
             for q in range(n_q):
@@ -67,18 +66,20 @@ def get_Istar(raw_pjoint, eps=1e-8):
     for rvndx, rv in enumerate(pjoint.rvs):
         if rvndx == target_rvndx:
             continue
-        pYSource = pjoint.marginal([target_rvndx,rvndx,], rv_mode='indices')
+        pY, pSourceGY = pjoint.condition_on(crvs=[target_rvndx,], rvs=[rvndx,], rv_mode='indices')
         for q in range(n_q):
             for y in pjoint.alphabet[target_rvndx]:
+                y_ix       = pY._outcomes_index[y]
                 constraint = 0
                 cur_mult   = 0.  # multiplier to make everything rational, and make rounded values add up to 1
                 for x in pjoint.alphabet[rvndx]:
-                    pXY        = int( pYSource[(str(x),str(y))] / eps )
-                    cur_mult   += pXY
-                    constraint += pXY * variablesQgiven[rvndx][(q, x)]
+                    pXgY        = int(pSourceGY[y_ix][x] / eps)
+                    cur_mult   += pXgY
+                    constraint += pXgY * variablesQgiven[rvndx][(q, x)]
                 cs.insert(constraint == cur_mult*variablesQgiven[target_rvndx][(q, y)])
 
     # Define a matrix that allows for fast mapping from return solution vector to joint distribution over Q and Y
+    pY     = pjoint.marginal([target_rvndx,])
     n_y    = len(pY)
     sol_mx = np.zeros((num_vars, n_q*n_y))
     for (q,y), k in variablesQgiven[target_rvndx].items():
@@ -100,5 +101,4 @@ def get_Istar(raw_pjoint, eps=1e-8):
         return sol, mi(sol['pQY'])
     
     return get_best_solution(cs, get_solution_val)
-
 

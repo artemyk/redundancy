@@ -15,7 +15,7 @@ def get_best_solution(cs, get_solution_val):
     best_x, best_val, best_sol = None, -np.inf, None
     for gen in all_generators:
         if not gen.is_point():
-            raise Exception
+            raise Exception('Returned solution not a point: %s'%gen)
             
         x        = point2array(gen)
         sol, val = get_solution_val(x, full=False)
