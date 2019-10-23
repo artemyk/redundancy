@@ -60,15 +60,14 @@ def get_Istar(raw_pjoint, eps=1e-8):
                 variablesQgiven[rvndx][(q, v)] = cvar
                 sum_to_one += cvar
                 cs.insert(cvar >= 0)
-            if rvndx != target_rvndx:
-                cs.insert(sum_to_one == 1)
+            cs.insert(sum_to_one == 1)
                 
                 
     for rvndx, rv in enumerate(pjoint.rvs):
         if rvndx == target_rvndx:
             continue
         pYSource = pjoint.marginal([rvndx,target_rvndx,], rv_mode='indices')
-        for q in range(n_q):
+        for q in range(1,n_q): # Skip the first q, since its redundant
             for y in pjoint.alphabet[target_rvndx]:
                 constraint = 0
                 cur_mult   = 0.  # multiplier to make everything rational, and make rounded values add up to 1
