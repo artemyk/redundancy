@@ -1,6 +1,7 @@
 # cython: language_level=3
 
-# Cython optimized mutual information estimator
+# Cython-optimized mutual information computation
+#  (we call this a lot, so it needs to be fast)
 
 cimport cython
 from libc.math cimport log
@@ -9,7 +10,11 @@ from libc.stdlib cimport malloc, free
 
 @cython.boundscheck(False) # turn off bounds-checking for entire function
 @cython.wraparound(False)  # turn off negative index wrapping for entire function
+
 def mi(double[:, :]  pjoint):
+    # Given joint distribution pjoint over two random variables Q and Y, 
+    # return the mutual information I(Q;Y) in bits
+
     cdef int n_q = pjoint.shape[0]
     cdef int n_y = pjoint.shape[1]
     cdef double p_q = 0
