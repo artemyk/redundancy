@@ -4,7 +4,7 @@
 #  (we call this a lot, so it needs to be fast)
 
 cimport cython
-from libc.math cimport log
+from libc.math cimport log2
 from libc.stdlib cimport malloc, free
 
 
@@ -30,15 +30,15 @@ def mi(double[:, :]  pjoint):
         for y in range(n_y):
             p = pjoint[q,y]
             if p > 0:
-                mi += p*log(p)
+                mi += p*log2(p)
                 p_q     += p
                 p_ys[y] += p
         if p_q > 0:
-            mi -= p_q*log(p_q)
+            mi -= p_q*log2(p_q)
         
     for y in range(n_y):
         p = p_ys[y]
         if p > 0:
-            mi -= p_ys[y]*log(p)
+            mi -= p_ys[y]*log2(p)
         
-    return mi / log(2.)
+    return mi

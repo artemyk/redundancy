@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from __future__ import division
 import numpy as np
 import ppl
 import pyximport; pyximport.install()
@@ -6,8 +7,8 @@ from mi import mi
 
 def point2array(p):
     # Convert a solution vector in ppl format to a return numpy array
-    x = np.array(list(map(float, p.coefficients())))
-    x /= float(p.divisor())
+    x = np.fromiter(p.coefficients(), dtype='double')
+    x = x/float(p.divisor())
     return x
 
 def get_best_solution(cs, get_solution_val):
@@ -23,7 +24,7 @@ def get_best_solution(cs, get_solution_val):
     # convert linear inequalities into a list of extreme points
     poly_from_constraints = ppl.C_Polyhedron(cs)
     all_generators = poly_from_constraints.minimized_generators()
-    
+
     best_x, best_val, best_sol = None, -np.inf, None
     # iterate over the extreme points
     for gen in all_generators:
