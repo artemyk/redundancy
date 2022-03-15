@@ -23,23 +23,17 @@ we have not derived a bound on the necessary cardinality for Q (though this
 can likely be done, using a similar technique as the bound for Istar)
 """
 
-from scipy.special import entr
 import convex_maximization
 import numpy as np
 
 
-
-def get_I_GH(raw_pjoint, n_q, eps=1e-8):
+def get_I_GH(raw_pjoint, n_q):
     """
     Parameters
     ----------
     raw_pjoint: dit distribution
         joint distribution object from dit, where the last random
         variable is the target Y, and the others are the sources X_1 ,..., X_n
-
-    eps: float
-        Rounding error. We must round our conditional probability distributions
-        to rationals (the library ppl requires rationals)
 
     Returns 
     -------
@@ -122,8 +116,8 @@ def get_I_GH(raw_pjoint, n_q, eps=1e-8):
                     if pXY[xy] == 0.:
                         continue
 
-                    lhs = np.zeros(num_vars, dtype='int')
-                    rhs = np.zeros(num_vars, dtype='int')
+                    lhs = np.zeros(num_vars)
+                    rhs = np.zeros(num_vars)
 
                     normL, normR = 0, 0
                     x,y      = xy
@@ -136,8 +130,8 @@ def get_I_GH(raw_pjoint, n_q, eps=1e-8):
                         valdict = {source: x}
                         valdict.update(dict(zip(otherrvs, othervals)))
 
-                        normL += int(p/eps)
-                        lhs[variables[q,k(valdict)]] += int(p/eps)
+                        normL += p
+                        lhs[variables[q,k(valdict)]] += p
 
                     ix       = pXY._outcomes_index[xy]         # condition on X
                     # calculate s(q|x_1,y) = Σ s(q|x_1,...x_n, y) p(x_2,...x_n|x_1,y)
@@ -147,8 +141,8 @@ def get_I_GH(raw_pjoint, n_q, eps=1e-8):
                         valdict = {source: x, 'Y': y}
                         valdict.update(dict(zip(otherrvs, othervals)))
 
-                        normR += int(p/eps)
-                        rhs[variables[q,k(valdict)]] += int(p/eps)
+                        normR += p
+                        rhs[variables[q,k(valdict)]] += p
 
                     A_eq.append(lhs*normR - rhs*normL)
                     b_eq.append(0)
@@ -164,28 +158,33 @@ def get_I_GH(raw_pjoint, n_q, eps=1e-8):
     for y in pjoint.alphabet[target_rvndx]:
         probs_y[pY._outcomes_index[y]] = pY[y]
 
+    def entr(x):
+        x = x + 1e-18
+        return -x*np.log2(x)
     H_Y = entr(probs_y).sum()
-    ln2 = np.log(2)
+
     def objective(x):
         # Map solution vector x to joint distribution over Q and Y
         pQY = x.dot(mul_mx).reshape((n_q,n_y))
         probs_q = pQY.sum(axis=1) + 1e-18
         H_YgQ = entr(pQY/probs_q[:,None]).sum(axis=1).dot(probs_q)
-        return (H_Y-H_YgQ)/ln2
+        v     = H_Y-H_YgQ
+        if 0>v>-1e-6: 
+            v   = 0  # round to zero if it is negative due to numerical issues
+        return v 
 
     # The following uses ppl to turn our system of linear inequalities into a 
     # set of extreme points of the corresponding polytope. It then calls 
     # get_solution_val on each extreme point
     x_opt, v_opt = convex_maximization.maximize_convex_function(
         f=objective,
-        A_eq=np.array(A_eq, dtype='int'), 
-        b_eq=np.array(b_eq, dtype='int'), 
-        A_ineq=np.array(A_ineq, dtype='int'), 
-        b_ineq=np.array(b_ineq, dtype='int'))
+        A_eq=np.array(A_eq), 
+        b_eq=np.array(b_eq), 
+        A_ineq=np.array(A_ineq), 
+        b_ineq=np.array(b_ineq))
 
     sol = {}
     sol['p(Q,Y)'] = x_opt.dot(mul_mx).reshape((n_q,n_y))
 
     return v_opt, sol   
-
 
