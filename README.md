@@ -7,4 +7,4 @@ For a detailed description, see:
 This code requires *pypman* library to be installed. It also requires the latest (GitHub) version of *dit*, installed via:
 * `pip install https://github.com/dit/dit/archive/master.zip`
 
-For basic usage, see `simpledemo.py`. The code expects a joint distribution over sources and target to be passed in, in [`dit`](https://github.com/dit/dit) format.
+For basic usage, see `simpledemo.py`. The code expects a joint distribution over sources and target to be passed in [`dit`](https://github.com/dit/dit) format.
