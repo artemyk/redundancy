@@ -5,6 +5,6 @@ For a detailed description, see:
 
 
 This code requires the latest versions of *dit* and *pypoman* libraries to be installed, e.g., via
-* `pip3 install dit pypoman`
+* `pip3 install --upgrade dit pypoman`
 
 For basic usage, see `simpledemo.py`. The code expects a joint distribution over sources and target to be passed in [`dit`](https://github.com/dit/dit) format.
