@@ -24,13 +24,20 @@ the vertex with the largest value of I(Y;Q).
 import numpy as np
 import convex_maximization
 
-def get_Iprec(raw_pjoint):
+def get_Iprec(raw_pjoint, n_q=None):
     """
     Parameters
     ----------
     raw_pjoint: dit distribution
         joint distribution object from dit, where the last random
         variable is the target Y, and the others are the sources X_1 ,..., X_n
+
+    n_q : int (default None)
+        The cardinality of the redundancy random variable Q. If not specified,
+        then use the cardinality from Theorem A1 in the paper (this cardinality 
+        is always sufficient). Choosing a lower cardinality by setting n_q can 
+        dramatically speed up computation, but at the cost of only providing a 
+        lower bound on the Blackwell redundancy
 
     Returns 
     -------
@@ -48,8 +55,11 @@ def get_Iprec(raw_pjoint):
     probs_y      = np.array([pY[y] for y in pjoint.alphabet[target_rvndx]])
     n_y          = len(pY)
     
-    if n_y <= 1:
-        # Trivial case where target has a single outcome, redundancy has to be 0
+    if not (n_q is None or (isinstance(n_q, int) and n_q >= 1)):
+        raise Exception('Parameter n_q should be None or positive integer')
+
+    if n_y <= 1 or n_q == 1:
+        # Trivial case where target or redundancy has a single outcome, redundancy has to be 0
         return 0, {}
     
     # variablesQgiven holds ppl variables that represent conditional probability
@@ -60,9 +70,10 @@ def get_Iprec(raw_pjoint):
     var_ix        = 0  # counter for tracking how many variables we've created
     
 
-    # Calculate the maximum number of outcomes we will require for Q
-    n_q = sum([len(alphabet)-1 for rvndx, alphabet in enumerate(pjoint.alphabet)
-                             if rvndx != target_rvndx]) + 1
+    if n_q is None:
+        # Calculate the maximum number of outcomes we will require for Q, per Theorem A1
+        n_q = sum([len(alphabet)-1 for rvndx, alphabet in enumerate(pjoint.alphabet)
+                                 if rvndx != target_rvndx]) + 1
                              
     # Iterate over all the random variables (R.V.s): i.e., all the sources + the target 
     for rvndx, rv in enumerate(pjoint.rvs):
