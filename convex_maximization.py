@@ -18,7 +18,6 @@ __all__ = (
     'maximize_convex_function',
 )
 
-import scipy
 import scipy.spatial.distance as sd
 
 
@@ -71,9 +70,7 @@ def maximize_convex_function(f, A_ineq, b_ineq, A_eq=None, b_eq=None):
     
     A_ineq = A_ineq.astype('float')
     b_ineq = b_ineq.astype('float')
-    #print(A_ineq.shape)
     A_ineq, b_ineq = remove_duplicates(A_ineq, b_ineq)
-    #print(A_ineq.shape)
 
     if A_eq is not None:
         # pypoman doesn't support equality constraints. We remove equality 
@@ -81,10 +78,7 @@ def maximize_convex_function(f, A_ineq, b_ineq, A_eq=None, b_eq=None):
 
         A_eq = A_eq.astype('float')
         b_eq = b_eq.astype('float')
-        #print(A_eq.shape)
         A_eq, b_eq = remove_duplicates(A_eq, b_eq)
-        #print(A_eq.shape)
-        #asdf
 
         # Get one solution that satisfies A x0 = b
         x0 = scipy.linalg.lstsq(A_eq, b_eq)[0]
