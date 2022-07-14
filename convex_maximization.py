@@ -8,6 +8,8 @@ polytope will be achieved at one of the extreme points of the polytope.
 Thus, the maximization is done by taking a system of linear inequalities,
 using the pypoman library to create a list of extreme
 points, and then evaluating the objective function on each point.
+
+We use various techniques to first prune away redundant constraints.
 """
 
 import numpy as np
@@ -20,9 +22,10 @@ __all__ = (
 
 import scipy.spatial.distance as sd
 
+ABS_TOL = 1e-7
 
 def remove_duplicates(A,b):
-    # Removes duplicate rows from A and b
+    # Removes duplicate rows from system (in)equalities given by A and b
     while True:
         N = len(A)
         mx = np.hstack([b[:,None], A])
@@ -31,7 +34,7 @@ def remove_duplicates(A,b):
         for ndx1 in range(N):
             A1, b1 = A[ndx1,:], b[ndx1]
             keep_rows = np.ones(N, bool)
-            keep_rows[ndx1+1:] = dists[ndx1,ndx1+1:]>1e-10
+            keep_rows[ndx1+1:] = dists[ndx1,ndx1+1:]>ABS_TOL
                     
             if not np.all(keep_rows):
                 duplicates_found = True
@@ -43,6 +46,46 @@ def remove_duplicates(A,b):
             break 
 
     return A, b
+
+
+def eliminate_redundant_constraints(A,b):
+    # Eliminate redundant constraints from the inequality system Ax <= b
+    init_num_cons = A.shape[0]
+    A, b = A.copy(), b.copy()
+    
+    N = A.shape[1]
+    bounds = [(None,None),]*N
+    
+    keep_rows         = list(range(A.shape[0]))
+    nonredundant_rows = set([])
+    
+    while True:
+        eliminated = False
+        for i in keep_rows:
+            
+            if i in nonredundant_rows:  # already tested this row
+                continue
+                
+            # Current row provides the constraint b >= a^T x
+            # Let A' and b' indicate all other constraints. 
+            # If b >= max_x a^T x  such that b' >= A'x, then this constraint is redundant and can be eliminated
+
+            other_rows = [j for j in keep_rows if j != i]
+            c = scipy.optimize.linprog(-A[i], A_ub=A[other_rows], b_ub=b[other_rows], bounds=bounds)
+            optval = -c.fun
+            if c.status != 0:  # LP solver did not succeed, row is not redundant
+                nonredundant_rows.add(i)
+                continue
+                
+            if -c.fun <= b[i] + ABS_TOL:  # redundant row
+                keep_rows = other_rows
+                eliminated = True
+                break
+
+        if not eliminated:
+            break
+            
+    return A[keep_rows], b[keep_rows]
 
 
 def maximize_convex_function(f, A_ineq, b_ineq, A_eq=None, b_eq=None):
@@ -89,18 +132,22 @@ def maximize_convex_function(f, A_ineq, b_ineq, A_eq=None, b_eq=None):
         # Now every solution can be written as x = x0 + Zq, since A x = A x0 = b 
 
         # Inequalities get transformed as
-        #   A'x <= b'  --->  A'(x0 + Zq) <= b --> (A'Z)q \le b - A'x0
+        #   A'x <= b'  to   A'(x0 + Zq) <= b  to  (A'Z)q <= b - A'x0
 
         b_ineq = b_ineq - A_ineq.dot(x0)
         A_ineq = A_ineq.dot(Z)
 
+        A_ineq, b_ineq = remove_duplicates(A_ineq, b_ineq)
+        
         transform = lambda q: Z.dot(q) + x0
 
     else:
         transform = lambda x: x
 
+    A_ineq, b_ineq = eliminate_redundant_constraints(A_ineq, b_ineq)
+    
     extreme_points = pypoman.compute_polytope_vertices(A_ineq, b_ineq)
-
+    
     for v in extreme_points:
         x = transform(v)
         val = f(x)
