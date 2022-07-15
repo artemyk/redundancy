@@ -22,8 +22,6 @@ __all__ = (
 
 import scipy.spatial.distance as sd
 
-ABS_TOL = 1e-7
-
 def remove_duplicates(A,b):
     # Removes duplicate rows from system (in)equalities given by A and b
     while True:
@@ -34,7 +32,7 @@ def remove_duplicates(A,b):
         for ndx1 in range(N):
             A1, b1 = A[ndx1,:], b[ndx1]
             keep_rows = np.ones(N, bool)
-            keep_rows[ndx1+1:] = dists[ndx1,ndx1+1:]>ABS_TOL
+            keep_rows[ndx1+1:] = dists[ndx1,ndx1+1:]>1e-08
                     
             if not np.all(keep_rows):
                 duplicates_found = True
@@ -50,10 +48,10 @@ def remove_duplicates(A,b):
 
 def eliminate_redundant_constraints(A,b):
     # Eliminate redundant constraints from the inequality system Ax <= b
-    init_num_cons = A.shape[0]
-    A, b = A.copy(), b.copy()
     
-    N = A.shape[1]
+    init_num_cons = A.shape[0] # initial number of constraints
+    
+    N = A.shape[1]             # number of variables
     bounds = [(None,None),]*N
     
     keep_rows         = list(range(A.shape[0]))
@@ -61,32 +59,35 @@ def eliminate_redundant_constraints(A,b):
     
     while True:
         eliminated = False
-        for i in keep_rows:
+        for i in keep_rows:  # test whether row i is redundant
             
             if i in nonredundant_rows:  # already tested this row
                 continue
                 
-            # Current row provides the constraint b >= a^T x
-            # Let A' and b' indicate all other constraints. 
+            # Current row specifies the constraint b >= a^T x
+            # Let A' and b' indicate the constraints in all the other rows 
             # If b >= max_x a^T x  such that b' >= A'x, then this constraint is redundant and can be eliminated
 
             other_rows = [j for j in keep_rows if j != i]
-            c = scipy.optimize.linprog(-A[i], A_ub=A[other_rows], b_ub=b[other_rows], bounds=bounds)
+            
+            A_other, b_other = A[other_rows], b[other_rows]
+            
+            c = scipy.optimize.linprog(-A[i], A_ub=A_other, b_ub=b_other, bounds=bounds)
             optval = -c.fun
-            if c.status != 0:  # LP solver did not succeed, row is not redundant
-                nonredundant_rows.add(i)
-                continue
-                
-            if -c.fun <= b[i] + ABS_TOL:  # redundant row
+            if c.status == 0 and -c.fun <= b[i] + 1e-15:  # solver succeeded and this row is redundant
                 keep_rows = other_rows
                 eliminated = True
                 break
+            
+            else:
+                # row is not redundant
+                nonredundant_rows.add(i)
 
         if not eliminated:
             break
             
-    return A[keep_rows], b[keep_rows]
-
+    A, b = A[keep_rows], b[keep_rows]
+    return A, b
 
 def maximize_convex_function(f, A_ineq, b_ineq, A_eq=None, b_eq=None):
     """
