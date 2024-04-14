@@ -73,8 +73,9 @@ def eliminate_redundant_constraints(A,b):
             A_other, b_other = A[other_rows], b[other_rows]
             
             c = scipy.optimize.linprog(-A[i], A_ub=A_other, b_ub=b_other, bounds=bounds)
-            optval = -c.fun
-            if c.status == 0 and -c.fun <= b[i] + 1e-15:  # solver succeeded and this row is redundant
+
+
+            if c.success and c.status == 0 and -c.fun <= b[i] + 1e-15:  # solver succeeded and this row is redundant
                 keep_rows = other_rows
                 eliminated = True
                 break

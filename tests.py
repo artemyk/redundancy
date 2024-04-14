@@ -11,6 +11,12 @@ from blackwell_redundancy import get_Iprec
 
 to_test = []  # add tuples (name, dit distribution, target value to 3 decimal places, opts to pass to get_Iprec)
 
+# simple UNQ gate
+to_test.append(('X1 unique gate',
+                dit.Distribution(['000','010','101','111'], [0.25, 0.25, 0.25, 0.25]),
+                0.0,
+                None))
+
 # simple AND gate
 to_test.append(('2-way AND gate',
                 dit.Distribution(['000','010','100','111'], [0.25, 0.25, 0.25, 0.25]),
